@@ -18,6 +18,7 @@ import "C"
 import (
 	"fmt"
 	"reflect"
+	"time"
 	"unsafe"
 )
 
@@ -69,6 +70,7 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 
 //export Invoke
 func Invoke(p unsafe.Pointer) int {
+	t0 := time.Now()
 	function := (*Function)(p)
 	lua := function.lua
 	funcType := reflect.TypeOf(function.fun)
@@ -91,6 +93,10 @@ func Invoke(p unsafe.Pointer) int {
 	}
 	if len(returnValues) != funcType.NumOut() {
 		lua.Panic("return values not match: %v", function.fun)
+	}
+	used := time.Now().Sub(t0)
+	if used > time.Millisecond*1 {
+		fmt.Printf("%v %s slow\n", time.Now().Sub(t0), function.name)
 	}
 	return len(returnValues)
 }
@@ -226,7 +232,10 @@ func pushGoValue(lua *Lua, value reflect.Value) {
 func (self *Lua) RunString(code string) {
 	defer func() {
 		if r := recover(); r != nil {
-			self.Panic("%v", r)
+			print("============ start lua traceback ============\n")
+			self.RunString(`print(debug.traceback())`)
+			print("============ end lua traceback ==============\n")
+			panic(r)
 		}
 	}()
 	cCode := C.CString(code)
@@ -242,8 +251,5 @@ func (self *Lua) RunString(code string) {
 }
 
 func (self *Lua) Panic(format string, args ...interface{}) {
-	print("============ start lua traceback ============\n")
-	self.RunString(`print(debug.traceback())`)
-	print("============ end lua traceback ==============\n")
 	panic(fmt.Sprintf(format, args...))
 }
