@@ -61,6 +61,12 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	self.Functions[name] = function
 }
 
+func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
+	for name, fun := range funcs {
+		self.RegisterFunction(name, fun)
+	}
+}
+
 //export Invoke
 func Invoke(p unsafe.Pointer) int {
 	function := (*Function)(p)

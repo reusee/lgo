@@ -129,4 +129,13 @@ func TestReturns(t *testing.T) {
 		return &i
 	})
 	lua.RunString(`if type(ptr()) ~= 'userdata' then error('not userdata') end`)
+
+	lua.RegisterFunctions(map[string]interface{}{
+		"foo": func() {},
+		"bar": func() {},
+	})
+	lua.RunString(`
+	foo()
+	bar()
+	`)
 }
