@@ -144,4 +144,9 @@ func TestPanic(t *testing.T) {
 	lua := NewLua()
 	lua.RegisterFunction("foo", func(i int) {})
 	//lua.RunString(`foo(true)`)
+
+	lua.RegisterFunction("panic", func() {
+		panic("foo")
+	})
+	//lua.RunString(`panic()`)
 }

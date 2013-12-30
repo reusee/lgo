@@ -220,6 +220,11 @@ func pushGoValue(lua *Lua, value reflect.Value) {
 }
 
 func (self *Lua) RunString(code string) {
+	defer func() {
+		if r := recover(); r != nil {
+			self.Panic("%v", r)
+		}
+	}()
 	cCode := C.CString(code)
 	defer C.free(unsafe.Pointer(cCode))
 	C.setup_message_handler(self.State)
