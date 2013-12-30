@@ -179,6 +179,8 @@ func toGoValue(lua *Lua, i C.int, paramType reflect.Type) (ret reflect.Value) {
 				toGoValue(lua, -1, elemType))
 			C.lua_settop(state, -2)
 		}
+	case reflect.UnsafePointer:
+		ret = reflect.ValueOf(C.lua_topointer(state, i))
 	default:
 		lua.Panic("unknown argument type %v", paramType)
 	}

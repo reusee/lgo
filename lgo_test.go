@@ -85,6 +85,13 @@ func TestArgument(t *testing.T) {
 		}
 	})
 	lua.RunString(`map{foo = 4, bar = 2}`)
+
+	lua.RegisterFunction("unsafepointer", func(m unsafe.Pointer) {
+		if m != nil {
+			t.Fail()
+		}
+	})
+	lua.RunString(`unsafepointer(nil)`)
 }
 
 func TestReturns(t *testing.T) {
