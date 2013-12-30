@@ -86,3 +86,47 @@ func TestArgument(t *testing.T) {
 	})
 	lua.RunString(`map{foo = 4, bar = 2}`)
 }
+
+func TestReturns(t *testing.T) {
+	lua := NewLua()
+
+	lua.RegisterFunction("bool", func() bool {
+		return true
+	})
+	lua.RunString(`if bool() ~= true then error('not true') end`)
+
+	lua.RegisterFunction("str", func() string {
+		return "foo"
+	})
+	lua.RunString(`if str() ~= 'foo' then error('not string') end`)
+
+	lua.RegisterFunction("num", func() (int32, uint64, float32) {
+		return 42, 99, 33.3
+	})
+	lua.RunString(`
+	i, u, f = num()
+	if i ~= 42 then error('not int32') end
+	if u ~= 99 then error('not uint64') end
+	if f - 33.3 > 0.000001 then error('not float32') end
+	`)
+
+	lua.RegisterFunction("slice", func() []int {
+		return []int{1, 2, 3}
+	})
+	lua.RunString(`
+	ret = slice()
+	if #ret ~= 3 then error('slice error') end
+	if ret[1] ~= 1 or ret[2] ~= 2 or ret[3] ~= 3 then error('slice error') end
+	`)
+
+	lua.RegisterFunction("interface", func() interface{} {
+		return "foo"
+	})
+	lua.RunString(`if interface() ~= 'foo' then error('interface error') end`)
+
+	lua.RegisterFunction("ptr", func() *int {
+		i := 5
+		return &i
+	})
+	lua.RunString(`if type(ptr()) ~= 'userdata' then error('not userdata') end`)
+}
