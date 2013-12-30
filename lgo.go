@@ -233,9 +233,8 @@ func (self *Lua) RunString(code string) {
 }
 
 func (self *Lua) Panic(format string, args ...interface{}) {
-	C.traceback(self.State)
 	print("============ start lua traceback ============\n")
-	fmt.Printf("%s\n", C.GoString(C.lua_tolstring(self.State, -1, nil)))
+	self.RunString(`print(debug.traceback())`)
 	print("============ end lua traceback ==============\n")
 	panic(fmt.Sprintf(format, args...))
 }

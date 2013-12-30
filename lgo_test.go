@@ -139,3 +139,9 @@ func TestReturns(t *testing.T) {
 	bar()
 	`)
 }
+
+func TestPanic(t *testing.T) {
+	lua := NewLua()
+	lua.RegisterFunction("foo", func(i int) {})
+	//lua.RunString(`foo(true)`)
+}
