@@ -180,7 +180,7 @@ func toGoValue(lua *Lua, i C.int, paramType reflect.Type) (ret reflect.Value) {
 			C.lua_settop(state, -2)
 		}
 	default:
-		lua.Panic("unknown argument type")
+		lua.Panic("unknown argument type %v", paramType)
 	}
 	return
 }
