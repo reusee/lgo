@@ -134,8 +134,10 @@ func toGoValue(lua *Lua, i C.int, paramType reflect.Type) (ret reflect.Value) {
 		case C.LUA_TSTRING:
 			ret = reflect.New(stringType).Elem()
 			ret.SetString(C.GoString(C.lua_tolstring(state, i, nil)))
+		case C.LUA_TLIGHTUSERDATA:
+			ret = reflect.ValueOf(C.lua_topointer(state, i))
 		default:
-			lua.Panic("wrong interface argument")
+			lua.Panic("wrong interface argument: %v", paramKind)
 		}
 	case reflect.String:
 		if luaType != C.LUA_TSTRING {
