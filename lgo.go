@@ -68,6 +68,19 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 				self.Panic("global %s is not a table", namespace)
 			}
 		} else { // sub namespace TODO
+			C.lua_pushstring(self.State, cNamespace)
+			C.lua_rawget(self.State, -2)
+			if C.lua_type(self.State, -1) == C.LUA_TNIL {
+				C.lua_settop(self.State, -2)
+				C.lua_pushstring(self.State, cNamespace)
+				C.lua_createtable(self.State, 0, 0)
+				C.lua_rawset(self.State, -3)
+				C.lua_pushstring(self.State, cNamespace)
+				C.lua_rawget(self.State, -2)
+			}
+			if C.lua_type(self.State, -1) != C.LUA_TTABLE {
+				self.Panic("global %s is not a table", namespace)
+			}
 		}
 	}
 	// register function

@@ -166,4 +166,18 @@ func TestNamespace(t *testing.T) {
 		}
 	})
 	lua.RunString(`foo.bar(42)`)
+
+	lua.RegisterFunction("bar.bar.bar", func(i int) {
+		if i != 42 {
+			t.Fail()
+		}
+	})
+	lua.RunString(`bar.bar.bar(42)`)
+
+	lua.RegisterFunction("bar.foo.baz.quux", func(i int) {
+		if i != 42 {
+			t.Fail()
+		}
+	})
+	lua.RunString(`bar.foo.baz.quux(42)`)
 }
