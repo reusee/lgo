@@ -18,7 +18,7 @@ import "C"
 import (
 	"fmt"
 	"reflect"
-	"time"
+	"strings"
 	"unsafe"
 )
 
@@ -47,6 +47,30 @@ func NewLua() *Lua {
 }
 
 func (self *Lua) RegisterFunction(name string, fun interface{}) {
+	path := strings.Split(name, ".")
+	name = path[len(path)-1]
+	path = path[0 : len(path)-1]
+	if len(path) == 0 {
+		path = append(path, "_G")
+	}
+	// ensure namespaces
+	for i, namespace := range path {
+		cNamespace := C.CString(namespace)
+		defer C.free(unsafe.Pointer(cNamespace))
+		if i == 0 { // top namespace
+			C.lua_getglobal(self.State, cNamespace)
+			if C.lua_type(self.State, -1) == C.LUA_TNIL { // not exists
+				C.lua_createtable(self.State, 0, 0)
+				C.lua_setglobal(self.State, cNamespace)
+				C.lua_getglobal(self.State, cNamespace)
+			}
+			if C.lua_type(self.State, -1) != C.LUA_TTABLE {
+				self.Panic("global %s is not a table", namespace)
+			}
+		} else { // sub namespace TODO
+		}
+	}
+	// register function
 	funcType := reflect.TypeOf(fun)
 	if funcType.IsVariadic() {
 		self.Panic("cannot register variadic function: %v", fun)
@@ -70,7 +94,6 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 
 //export Invoke
 func Invoke(p unsafe.Pointer) int {
-	t0 := time.Now()
 	function := (*Function)(p)
 	lua := function.lua
 	funcType := reflect.TypeOf(function.fun)
@@ -91,10 +114,6 @@ func Invoke(p unsafe.Pointer) int {
 	}
 	for _, v := range returnValues {
 		pushGoValue(lua, v)
-	}
-	used := time.Now().Sub(t0)
-	if used > time.Millisecond*1 {
-		fmt.Printf("%v %s slow\n", time.Now().Sub(t0), function.name)
 	}
 	return len(returnValues)
 }

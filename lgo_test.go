@@ -157,3 +157,13 @@ func TestPanic(t *testing.T) {
 	})
 	//lua.RunString(`panic()`)
 }
+
+func TestNamespace(t *testing.T) {
+	lua := NewLua()
+	lua.RegisterFunction("foo.bar", func(i int) {
+		if i != 42 {
+			t.Fail()
+		}
+	})
+	lua.RunString(`foo.bar(42)`)
+}
