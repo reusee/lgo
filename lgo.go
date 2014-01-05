@@ -4,7 +4,6 @@ package lgo
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#include <stdlib.h>
 #include <string.h>
 #cgo pkg-config: lua
 
@@ -21,6 +20,17 @@ import (
 	"strings"
 	"unsafe"
 )
+
+var cstrs = make(map[string]*C.char)
+
+func cstr(str string) *C.char {
+	if c, ok := cstrs[str]; ok {
+		return c
+	}
+	c := C.CString(str)
+	cstrs[str] = c
+	return c
+}
 
 type Lua struct {
 	State     *C.lua_State
@@ -60,8 +70,7 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	}
 	// ensure namespaces
 	for i, namespace := range path {
-		cNamespace := C.CString(namespace)
-		defer C.free(unsafe.Pointer(cNamespace))
+		cNamespace := cstr(namespace)
 		if i == 0 { // top namespace
 			C.lua_getglobal(self.State, cNamespace)
 			if C.lua_type(self.State, -1) == C.LUA_TNIL { // not exists
@@ -103,8 +112,7 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 			argc--
 		}
 	}
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
+	cName := cstr(name)
 	function := &Function{
 		fun:       fun,
 		lua:       self,
@@ -290,8 +298,7 @@ func (self *Lua) RunString(code string) {
 			panic(r)
 		}
 	}()
-	cCode := C.CString(code)
-	defer C.free(unsafe.Pointer(cCode))
+	cCode := cstr(code)
 	C.setup_message_handler(self.State)
 	if ret := C.luaL_loadstring(self.State, cCode); ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
@@ -311,8 +318,7 @@ func (self *Lua) CallFunction(name string, args ...interface{}) {
 			panic(r)
 		}
 	}()
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
+	cName := cstr(name)
 	C.setup_message_handler(self.State)
 	C.lua_rawgeti(self.State, C.LUA_REGISTRYINDEX, C.LUA_RIDX_GLOBALS)
 	C.lua_getfield(self.State, C.int(-1), cName)
