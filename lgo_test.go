@@ -191,3 +191,13 @@ func TestMethod(t *testing.T) {
 	})
 	lua.RunString(`method()`)
 }
+
+func TestCallFunction(t *testing.T) {
+	lua := NewLua()
+	lua.RunString(`
+	function foo(arg)
+		if arg ~= 42 then error('not 42') end
+	end
+	`)
+	lua.CallFunction("foo", 42)
+}

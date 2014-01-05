@@ -302,6 +302,29 @@ func (self *Lua) RunString(code string) {
 	}
 }
 
+func (self *Lua) CallFunction(name string, args ...interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			print("============ start lua traceback ============\n")
+			self.RunString(`print(debug.traceback())`)
+			print("============ end lua traceback ==============\n")
+			panic(r)
+		}
+	}()
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+	C.setup_message_handler(self.State)
+	C.lua_rawgeti(self.State, C.LUA_REGISTRYINDEX, C.LUA_RIDX_GLOBALS)
+	C.lua_getfield(self.State, C.int(-1), cName)
+	for _, arg := range args {
+		self.PushGoValue(reflect.ValueOf(arg))
+	}
+	ret := C.lua_pcallk(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2), 0, nil)
+	if ret != C.int(0) {
+		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
+	}
+}
+
 func (self *Lua) Panic(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
