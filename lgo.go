@@ -5,7 +5,7 @@ package lgo
 #include <lualib.h>
 #include <lauxlib.h>
 #include <string.h>
-#cgo pkg-config: lua
+#cgo pkg-config: luajit
 
 void register_function(lua_State*, const char*, void*);
 void setup_message_handler(lua_State*);
@@ -72,12 +72,12 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	for i, namespace := range path {
 		cNamespace := cstr(namespace)
 		if i == 0 { // top namespace
-			C.lua_getglobal(self.State, cNamespace)
+			C.lua_getfield(self.State, C.LUA_GLOBALSINDEX, cNamespace)
 			if C.lua_type(self.State, -1) == C.LUA_TNIL { // not exists
 				C.lua_settop(self.State, -2)
 				C.lua_createtable(self.State, 0, 0)
-				C.lua_setglobal(self.State, cNamespace)
-				C.lua_getglobal(self.State, cNamespace)
+				C.lua_setfield(self.State, C.LUA_GLOBALSINDEX, cNamespace)
+				C.lua_getfield(self.State, C.LUA_GLOBALSINDEX, cNamespace)
 			}
 			if C.lua_type(self.State, -1) != C.LUA_TTABLE {
 				self.Panic("global %s is not a table", namespace)
@@ -180,24 +180,24 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 			lua.Panic("not a integer")
 		}
 		ret = reflect.New(paramType).Elem()
-		ret.SetInt(int64(C.lua_tointegerx(lua.State, i, nil)))
+		ret.SetInt(int64(C.lua_tointeger(lua.State, i)))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if luaType != C.LUA_TNUMBER {
 			lua.Panic("not a unsigned")
 		}
 		ret = reflect.New(paramType).Elem()
-		ret.SetUint(uint64(C.lua_tointegerx(lua.State, i, nil)))
+		ret.SetUint(uint64(C.lua_tointeger(lua.State, i)))
 	case reflect.Float32, reflect.Float64:
 		if luaType != C.LUA_TNUMBER {
 			lua.Panic("not a unsigned")
 		}
 		ret = reflect.New(paramType).Elem()
-		ret.SetFloat(float64(C.lua_tonumberx(lua.State, i, nil)))
+		ret.SetFloat(float64(C.lua_tonumber(lua.State, i)))
 	case reflect.Interface:
 		switch luaType {
 		case C.LUA_TNUMBER:
 			ret = reflect.New(intType).Elem()
-			ret.SetInt(int64(C.lua_tointegerx(lua.State, i, nil)))
+			ret.SetInt(int64(C.lua_tointeger(lua.State, i)))
 		case C.LUA_TSTRING:
 			ret = reflect.New(stringType).Elem()
 			ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
@@ -303,10 +303,11 @@ func (self *Lua) RunString(code string) {
 	if ret := C.luaL_loadstring(self.State, cCode); ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
 	}
-	ret := C.lua_pcallk(self.State, 0, 0, C.lua_gettop(self.State)-C.int(1), 0, nil)
+	ret := C.lua_pcall(self.State, 0, 0, C.lua_gettop(self.State)-C.int(1))
 	if ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
 	}
+	C.lua_settop(self.State, 0)
 }
 
 func (self *Lua) CallFunction(name string, args ...interface{}) {
@@ -320,12 +321,11 @@ func (self *Lua) CallFunction(name string, args ...interface{}) {
 	}()
 	cName := cstr(name)
 	C.setup_message_handler(self.State)
-	C.lua_rawgeti(self.State, C.LUA_REGISTRYINDEX, C.LUA_RIDX_GLOBALS)
-	C.lua_getfield(self.State, C.int(-1), cName)
+	C.lua_getfield(self.State, C.LUA_GLOBALSINDEX, cName)
 	for _, arg := range args {
 		self.PushGoValue(reflect.ValueOf(arg))
 	}
-	ret := C.lua_pcallk(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2), 0, nil)
+	ret := C.lua_pcall(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2))
 	if ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
 	}

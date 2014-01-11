@@ -13,12 +13,11 @@ void register_function(lua_State* state, const char* name, void* func) {
 }
 
 int traceback(lua_State* L) {
-	lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
-  lua_getfield(L, -1, "debug");
+  lua_getfield(L, LUA_GLOBALSINDEX, "debug");
   lua_getfield(L, -1, "traceback");
   lua_pushvalue(L, 1);
   lua_pushinteger(L, 2);
-  lua_callk(L, 2, 1, 0, NULL);
+  lua_call(L, 2, 1);
   return 1;
 }
 
