@@ -45,7 +45,7 @@ func TestArgument(t *testing.T) {
 	//lua.RunString(`float(true)`)
 
 	lua.RegisterFunction("interface", func(a, b interface{}) {
-		if i, ok := a.(int); !ok || i != 42 {
+		if i, ok := a.(float64); !ok || i != 42 {
 			t.Fail()
 		}
 		if s, ok := b.(string); !ok || s != "foo" {

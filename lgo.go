@@ -165,6 +165,8 @@ func Invoke(p unsafe.Pointer) int {
 
 var stringType = reflect.TypeOf("")
 var intType = reflect.TypeOf(int(0))
+var floatType = reflect.TypeOf(float64(0))
+var boolType = reflect.TypeOf(true)
 
 func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 	luaType := C.lua_type(lua.State, i)
@@ -196,13 +198,16 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 	case reflect.Interface:
 		switch luaType {
 		case C.LUA_TNUMBER:
-			ret = reflect.New(intType).Elem()
-			ret.SetInt(int64(C.lua_tointeger(lua.State, i)))
+			ret = reflect.New(floatType).Elem()
+			ret.SetFloat(float64(C.lua_tonumber(lua.State, i)))
 		case C.LUA_TSTRING:
 			ret = reflect.New(stringType).Elem()
 			ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
 		case C.LUA_TLIGHTUSERDATA:
 			ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
+		case C.LUA_TBOOLEAN:
+			ret = reflect.New(boolType).Elem()
+			ret.SetBool(C.lua_toboolean(lua.State, i) == C.int(1))
 		default:
 			lua.Panic("wrong interface argument: %v", paramKind)
 		}
@@ -282,7 +287,7 @@ func (lua *Lua) PushGoValue(value reflect.Value) {
 		}
 	case reflect.Interface:
 		lua.PushGoValue(value.Elem())
-	case reflect.Ptr:
+	case reflect.Ptr, reflect.UnsafePointer:
 		C.lua_pushlightuserdata(lua.State, unsafe.Pointer(value.Pointer()))
 	default:
 		lua.Panic("wrong return value %v %v", value, t.Kind())
