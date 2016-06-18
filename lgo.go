@@ -5,9 +5,10 @@ package lgo
 #include <lualib.h>
 #include <lauxlib.h>
 #include <string.h>
-#cgo pkg-config: luajit
+#include <stdint.h>
+#cgo pkg-config: lua
 
-void register_function(lua_State*, const char*, void*);
+void register_function(lua_State*, const char*, int64_t);
 void setup_message_handler(lua_State*);
 int traceback(lua_State*);
 
@@ -16,6 +17,7 @@ import "C"
 
 import (
 	"fmt"
+	"math/rand"
 	"reflect"
 	"strings"
 	"unsafe"
@@ -72,12 +74,12 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	for i, namespace := range path {
 		cNamespace := cstr(namespace)
 		if i == 0 { // top namespace
-			C.lua_getfield(self.State, C.LUA_GLOBALSINDEX, cNamespace)
-			if C.lua_type(self.State, -1) == C.LUA_TNIL { // not exists
+			what := C.lua_getglobal(self.State, cNamespace)
+			if what == C.LUA_TNIL { // not exists
 				C.lua_settop(self.State, -2)
 				C.lua_createtable(self.State, 0, 0)
-				C.lua_setfield(self.State, C.LUA_GLOBALSINDEX, cNamespace)
-				C.lua_getfield(self.State, C.LUA_GLOBALSINDEX, cNamespace)
+				C.lua_setglobal(self.State, cNamespace)
+				C.lua_getglobal(self.State, cNamespace)
 			}
 			if C.lua_type(self.State, -1) != C.LUA_TTABLE {
 				self.Panic("global %s is not a table", namespace)
@@ -125,10 +127,14 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	if isMethod {
 		function.receiver = reflect.ValueOf(self)
 	}
-	C.register_function(self.State, cName, unsafe.Pointer(function))
+	funcId := rand.Int63()
+	functionRegister.Set(funcId, function)
+	C.register_function(self.State, cName, (C.int64_t)(funcId))
 	self.Functions[name] = function
 	C.lua_settop(self.State, -2)
 }
+
+var functionRegister = new(FunctionRegister)
 
 func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 	for name, fun := range funcs {
@@ -137,8 +143,11 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 }
 
 //export Invoke
-func Invoke(p unsafe.Pointer) int {
-	function := (*Function)(p)
+func Invoke(funcId int64) int {
+	function, ok := functionRegister.Get(funcId)
+	if !ok {
+		panic(fmt.Sprintf("invalid function id %d\n", funcId))
+	}
 	// check argument count
 	argc := C.lua_gettop(function.lua.State)
 	if int(argc) != function.argc {
@@ -182,24 +191,24 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 			lua.Panic("not a integer")
 		}
 		ret = reflect.New(paramType).Elem()
-		ret.SetInt(int64(C.lua_tointeger(lua.State, i)))
+		ret.SetInt(int64(C.lua_tointegerx(lua.State, i, nil)))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if luaType != C.LUA_TNUMBER {
 			lua.Panic("not a unsigned")
 		}
 		ret = reflect.New(paramType).Elem()
-		ret.SetUint(uint64(C.lua_tointeger(lua.State, i)))
+		ret.SetUint(uint64(C.lua_tointegerx(lua.State, i, nil)))
 	case reflect.Float32, reflect.Float64:
 		if luaType != C.LUA_TNUMBER {
 			lua.Panic("not a unsigned")
 		}
 		ret = reflect.New(paramType).Elem()
-		ret.SetFloat(float64(C.lua_tonumber(lua.State, i)))
+		ret.SetFloat(float64(C.lua_tonumberx(lua.State, i, nil)))
 	case reflect.Interface:
 		switch luaType {
 		case C.LUA_TNUMBER:
 			ret = reflect.New(floatType).Elem()
-			ret.SetFloat(float64(C.lua_tonumber(lua.State, i)))
+			ret.SetFloat(float64(C.lua_tonumberx(lua.State, i, nil)))
 		case C.LUA_TSTRING:
 			ret = reflect.New(stringType).Elem()
 			ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
@@ -308,7 +317,7 @@ func (self *Lua) RunString(code string) {
 	if ret := C.luaL_loadstring(self.State, cCode); ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
 	}
-	ret := C.lua_pcall(self.State, 0, 0, C.lua_gettop(self.State)-C.int(1))
+	ret := C.lua_pcallk(self.State, 0, 0, C.lua_gettop(self.State)-C.int(1), 0, nil)
 	if ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
 	}
@@ -326,11 +335,11 @@ func (self *Lua) CallFunction(name string, args ...interface{}) {
 	}()
 	cName := cstr(name)
 	C.setup_message_handler(self.State)
-	C.lua_getfield(self.State, C.LUA_GLOBALSINDEX, cName)
+	C.lua_getglobal(self.State, cName)
 	for _, arg := range args {
 		self.PushGoValue(reflect.ValueOf(arg))
 	}
-	ret := C.lua_pcall(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2))
+	ret := C.lua_pcallk(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2), 0, nil)
 	if ret != C.int(0) {
 		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
 	}
