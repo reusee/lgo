@@ -1,11 +1,11 @@
 #include "lua.h"
 #include <stdint.h>
 
-extern int Invoke(int64_t);
+extern int invoke(int64_t);
 
 int invoke_go_func(lua_State* state) {
   int64_t func_id = lua_tointeger(state, lua_upvalueindex(1));
-  return Invoke(func_id);
+  return invoke(func_id);
 }
 
 void register_function(lua_State* state, const char* name, int64_t func_id) {

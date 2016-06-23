@@ -141,8 +141,8 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 	}
 }
 
-//export Invoke
-func Invoke(funcId int64) int {
+//export invoke
+func invoke(funcId int64) int {
 	function, ok := functionRegister.Get(funcId)
 	if !ok { //NOCOVER
 		panic(fmt.Sprintf("invalid function id %d\n", funcId))
