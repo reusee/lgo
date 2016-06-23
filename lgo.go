@@ -48,7 +48,7 @@ type Lua struct {
 	PrintTraceback bool
 }
 
-type Function struct {
+type _Function struct {
 	name      string
 	lua       *Lua
 	fun       interface{}
@@ -116,7 +116,7 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	}
 	argc := funcType.NumIn()
 	cName := cstr(name)
-	function := &Function{
+	function := &_Function{
 		fun:       fun,
 		lua:       self,
 		name:      name,
@@ -130,7 +130,7 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	C.lua_settop(self.State, -2)
 }
 
-var functionRegister = new(FunctionRegister)
+var functionRegister = new(_FunctionRegister)
 
 func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 	for name, fun := range funcs {
