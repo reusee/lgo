@@ -45,7 +45,6 @@ func cstr(str string) *C.char {
 
 type Lua struct {
 	State          *C.lua_State
-	Functions      map[string]*Function
 	PrintTraceback bool
 }
 
@@ -66,7 +65,6 @@ func NewLua() *Lua {
 	C.luaL_openlibs(state)
 	lua := &Lua{
 		State:          state,
-		Functions:      make(map[string]*Function),
 		PrintTraceback: true,
 	}
 	return lua
@@ -129,7 +127,6 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	funcId := rand.Int63()
 	functionRegister.Set(funcId, function)
 	C.register_function(self.State, cName, (C.int64_t)(funcId))
-	self.Functions[name] = function
 	C.lua_settop(self.State, -2)
 }
 
