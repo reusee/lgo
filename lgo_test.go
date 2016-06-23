@@ -2,6 +2,7 @@ package lgo
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -92,6 +93,20 @@ func TestArgument(t *testing.T) {
 		}
 	})
 	lua.RunString(`unsafepointer(nil)`)
+
+	lua.RegisterFunction("foo", func(s struct{}) {})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "unknown argument type struct {}" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo(1)`)
+	}()
 }
 
 func TestReturns(t *testing.T) {
@@ -145,6 +160,19 @@ func TestReturns(t *testing.T) {
 	foo()
 	bar()
 	`)
+
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.HasPrefix(p.(string), "cannot register variadic function") {
+				t.Fail()
+			}
+		}()
+		lua.RegisterFunction("foo", func(is ...int) {})
+	}()
 }
 
 func TestPanic(t *testing.T) {
@@ -180,6 +208,35 @@ func TestNamespace(t *testing.T) {
 		}
 	})
 	lua.RunString(`bar.foo.baz.quux(42)`)
+
+	lua.RunString(`Foo = 1`)
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "global Foo is not a table" {
+				t.Fail()
+			}
+		}()
+		lua.RegisterFunction("Foo.bar", func() {})
+	}()
+
+	lua.RunString(`Bar = {}`)
+	lua.RunString(`Bar.Bar = 1`)
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "namespace Bar is not a table" {
+				t.Fail()
+			}
+		}()
+		lua.RegisterFunction("Bar.Bar.bar", func() {})
+	}()
 }
 
 func TestMethod(t *testing.T) {
@@ -200,4 +257,144 @@ func TestCallFunction(t *testing.T) {
 	end
 	`)
 	lua.CallFunction("foo", 42)
+
+	lua.RegisterFunction("foo", func(a, b int) {
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.HasPrefix(p.(string), "arguments not match") {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo(1)`)
+	}()
+
+	s := "foo"
+	lua.RegisterFunction("foo", func(a *string) {
+		if a != &s {
+			t.Fatal("passing wrong pointer")
+		}
+	})
+	lua.RegisterFunction("a_pointer", func() *string {
+		return &s
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not a pointer" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo(1)`)
+	}()
+	lua.RunString(`foo(a_pointer())`)
+
+	lua.RegisterFunction("foo", func(b bool) {
+		if !b {
+			t.Fail()
+		}
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not a boolean" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo({})`)
+	}()
+	lua.RunString(`foo(true)`)
+
+	lua.RegisterFunction("foo", func(i int) {
+		if i != 42 {
+			t.Fail()
+		}
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not an integer" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo({})`)
+	}()
+	lua.RunString(`foo(42)`)
+
+	lua.RegisterFunction("foo", func(i uint) {
+		if i != 42 {
+			t.Fail()
+		}
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not an unsigned" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo({})`)
+	}()
+	lua.RunString(`foo(42)`)
+
+	lua.RegisterFunction("foo", func(i float64) {
+		if i != 4.2 {
+			t.Fail()
+		}
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not a float" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo({})`)
+	}()
+	lua.RunString(`foo(4.2)`)
+
+	lua.RegisterFunction("foo", func(i interface{}) {
+		if i, ok := i.(bool); !ok {
+			t.Fail()
+		} else {
+			if !i {
+				t.Fail()
+			}
+		}
+	})
+	lua.RunString(`foo(true)`)
+
+	lua.RegisterFunction("foo", func(i interface{}) {
+	})
+	func() {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.HasPrefix(p.(string), "wrong interface argument") {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`foo(function() end)`)
+	}()
 }

@@ -188,19 +188,19 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 		ret = reflect.ValueOf(C.lua_toboolean(lua.State, i) == C.int(1))
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if luaType != C.LUA_TNUMBER {
-			lua.Panic("not a integer")
+			lua.Panic("not an integer")
 		}
 		ret = reflect.New(paramType).Elem()
 		ret.SetInt(int64(C.lua_tointegerx(lua.State, i, nil)))
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if luaType != C.LUA_TNUMBER {
-			lua.Panic("not a unsigned")
+			lua.Panic("not an unsigned")
 		}
 		ret = reflect.New(paramType).Elem()
 		ret.SetUint(uint64(C.lua_tointegerx(lua.State, i, nil)))
 	case reflect.Float32, reflect.Float64:
 		if luaType != C.LUA_TNUMBER {
-			lua.Panic("not a unsigned")
+			lua.Panic("not a float")
 		}
 		ret = reflect.New(paramType).Elem()
 		ret.SetFloat(float64(C.lua_tonumberx(lua.State, i, nil)))
@@ -213,10 +213,13 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 			ret = reflect.New(stringType).Elem()
 			ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
 		case C.LUA_TLIGHTUSERDATA:
+			//TODO test
 			ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
 		case C.LUA_TBOOLEAN:
 			ret = reflect.New(boolType).Elem()
 			ret.SetBool(C.lua_toboolean(lua.State, i) == C.int(1))
+		//TODO nil
+		//TODO table
 		default:
 			lua.Panic("wrong interface argument: %v", paramKind)
 		}
@@ -247,7 +250,8 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 		if luaType != C.LUA_TLIGHTUSERDATA {
 			lua.Panic("not a pointer")
 		}
-		ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
+		pointer := C.lua_topointer(lua.State, i)
+		ret = reflect.NewAt(paramType, unsafe.Pointer(&pointer)).Elem()
 	case reflect.Map:
 		if luaType != C.LUA_TTABLE {
 			lua.Panic("not a map")
@@ -264,6 +268,11 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 		}
 	case reflect.UnsafePointer:
 		ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
+	//TODO complex64/128
+	//TODO array
+	//TODO chan
+	//TODO func
+	//TODO struct
 	default:
 		lua.Panic("unknown argument type %v", paramType)
 	}
