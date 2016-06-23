@@ -35,8 +35,9 @@ func cstr(str string) *C.char {
 }
 
 type Lua struct {
-	State     *C.lua_State
-	Functions map[string]*Function
+	State          *C.lua_State
+	Functions      map[string]*Function
+	PrintTraceback bool
 }
 
 type Function struct {
@@ -46,19 +47,18 @@ type Function struct {
 	funcType  reflect.Type
 	funcValue reflect.Value
 	argc      int
-	isMethod  bool
-	receiver  reflect.Value
 }
 
 func NewLua() *Lua {
 	state := C.luaL_newstate()
-	if state == nil {
+	if state == nil { //NOCOVER
 		panic("lua state create error")
 	}
 	C.luaL_openlibs(state)
 	lua := &Lua{
-		State:     state,
-		Functions: make(map[string]*Function),
+		State:          state,
+		Functions:      make(map[string]*Function),
+		PrintTraceback: true,
 	}
 	return lua
 }
@@ -106,14 +106,6 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 		self.Panic("cannot register variadic function: %v", fun)
 	}
 	argc := funcType.NumIn()
-	isMethod := false
-	if argc > 0 {
-		firstArgType := funcType.In(0)
-		if firstArgType == reflect.TypeOf(self) {
-			isMethod = true
-			argc--
-		}
-	}
 	cName := cstr(name)
 	function := &Function{
 		fun:       fun,
@@ -122,10 +114,6 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 		funcType:  funcType,
 		funcValue: reflect.ValueOf(fun),
 		argc:      argc,
-		isMethod:  isMethod,
-	}
-	if isMethod {
-		function.receiver = reflect.ValueOf(self)
 	}
 	funcId := rand.Int63()
 	functionRegister.Set(funcId, function)
@@ -145,7 +133,7 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 //export Invoke
 func Invoke(funcId int64) int {
 	function, ok := functionRegister.Get(funcId)
-	if !ok {
+	if !ok { //NOCOVER
 		panic(fmt.Sprintf("invalid function id %d\n", funcId))
 	}
 	// check argument count
@@ -155,15 +143,12 @@ func Invoke(funcId int64) int {
 	}
 	// arguments
 	var args []reflect.Value
-	if function.isMethod {
-		args = append(args, function.receiver)
-	}
 	for i := C.int(1); i <= argc; i++ {
 		args = append(args, function.lua.toGoValue(i, function.funcType.In(int(i-1))))
 	}
 	// call and returns
 	returnValues := function.funcValue.Call(args)
-	if len(returnValues) != function.funcType.NumOut() {
+	if len(returnValues) != function.funcType.NumOut() { //NOCOVER
 		function.lua.Panic("return values not match: %v", function.fun)
 	}
 	for _, v := range returnValues {
@@ -315,9 +300,11 @@ func (lua *Lua) PushGoValue(value reflect.Value) {
 func (self *Lua) RunString(code string) {
 	defer func() {
 		if r := recover(); r != nil {
-			print("============ start lua traceback ============\n")
-			self.RunString(`print(debug.traceback())`)
-			print("============ end lua traceback ==============\n")
+			if self.PrintTraceback {
+				print("============ start lua traceback ============\n")
+				self.RunString(`print(debug.traceback())`)
+				print("============ end lua traceback ==============\n")
+			}
 			panic(r)
 		}
 	}()
@@ -336,9 +323,11 @@ func (self *Lua) RunString(code string) {
 func (self *Lua) CallFunction(name string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			print("============ start lua traceback ============\n")
-			self.RunString(`print(debug.traceback())`)
-			print("============ end lua traceback ==============\n")
+			if self.PrintTraceback {
+				print("============ start lua traceback ============\n")
+				self.RunString(`print(debug.traceback())`)
+				print("============ end lua traceback ==============\n")
+			}
 			panic(r)
 		}
 	}()
