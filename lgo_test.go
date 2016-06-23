@@ -123,6 +123,19 @@ func TestAll(t *testing.T) {
 		lua.RunString(`unsafepointer(nil)`)
 	})
 
+	t.Run("pointer argument", func(t *testing.T) {
+		s := "foo"
+		lua.RegisterFunction("pointerargument", func(p *string) {
+			if p != &s {
+				t.Fail()
+			}
+		})
+		lua.RegisterFunction("a_string_pointer", func() *string {
+			return &s
+		})
+		lua.RunString("pointerargument(a_string_pointer())")
+	})
+
 	t.Run("unknown argument", func(t *testing.T) {
 		lua.RegisterFunction("foo", func(s struct{}) {})
 		defer func() {
@@ -287,11 +300,13 @@ func TestAll(t *testing.T) {
 
 	t.Run("call function", func(t *testing.T) {
 		lua.RunString(`
-			function foo(arg)
-				if arg ~= 42 then error('not 42') end
+			function foo(i, b1, b2)
+				if i ~= 42 then error('not 42') end
+				if b1 ~= true then error('not true') end
+				if b2 ~= false then error('not false') end
 			end
 		`)
-		lua.CallFunction("foo", 42)
+		lua.CallFunction("foo", 42, true, false)
 	})
 
 	t.Run("argument not match", func(t *testing.T) {
@@ -410,5 +425,136 @@ func TestAll(t *testing.T) {
 			}
 		}()
 		lua.RunString(`foo(function() end)`)
+	})
+
+	t.Run("pointer interface", func(t *testing.T) {
+		s := "foo"
+		lua.RegisterFunction("pointerinterface", func(p interface{}) {
+			if (*string)(p.(unsafe.Pointer)) != &s {
+				t.Fail()
+			}
+		})
+		lua.RegisterFunction("a_string_pointer", func() *string {
+			return &s
+		})
+		lua.RunString("pointerinterface(a_string_pointer())")
+	})
+
+	t.Run("invalid string", func(t *testing.T) {
+		lua.RegisterFunction("invalidstring", func(s string) {})
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not a string" {
+				t.Fail()
+			}
+		}()
+		lua.RunString("invalidstring(1)")
+	})
+
+	t.Run("invalid slice", func(t *testing.T) {
+		lua.RegisterFunction("invalidslice", func(slice []int) {})
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "wrong slice argument" {
+				t.Fail()
+			}
+		}()
+		lua.RunString("invalidslice(1)")
+	})
+
+	t.Run("invalid pointer", func(t *testing.T) {
+		lua.RegisterFunction("invalidpointer", func(p *int) {})
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not a pointer" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`invalidpointer(1)`)
+	})
+
+	t.Run("invalid map", func(t *testing.T) {
+		lua.RegisterFunction("invalidmap", func(m map[int]bool) {})
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if p.(string) != "not a map" {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`invalidmap(1)`)
+	})
+
+	t.Run("wrong return type", func(t *testing.T) {
+		lua.RunString(`
+			function foo(fn)
+				return fn
+			end
+		`)
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.HasPrefix(p.(string), "wrong return value") {
+				t.Fail()
+			}
+		}()
+		lua.CallFunction("foo", func() {})
+	})
+
+	t.Run("invalid lua code", func(t *testing.T) {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.Contains(p.(string), "syntax error") {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`func end`)
+	})
+
+	t.Run("lua error", func(t *testing.T) {
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.Contains(p.(string), "foobarbaz") {
+				t.Fail()
+			}
+		}()
+		lua.RunString(`error('foobarbaz')`)
+	})
+
+	t.Run("call lua error", func(t *testing.T) {
+		lua.RunString(`
+			function foobarbaz()
+				error('foobarbaz')
+			end
+		`)
+		defer func() {
+			p := recover()
+			if p == nil {
+				t.Fail()
+			}
+			if !strings.Contains(p.(string), "foobarbaz") {
+				t.Fail()
+			}
+		}()
+		lua.CallFunction("foobarbaz")
 	})
 }

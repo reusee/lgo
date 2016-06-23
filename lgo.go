@@ -20,17 +20,26 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"sync"
 	"unsafe"
 )
 
-var cstrs = make(map[string]*C.char)
+var (
+	cstrs     = make(map[string]*C.char)
+	cstrsLock = new(sync.RWMutex)
+)
 
 func cstr(str string) *C.char {
-	if c, ok := cstrs[str]; ok {
+	cstrsLock.RLock()
+	c, ok := cstrs[str]
+	cstrsLock.RUnlock()
+	if ok {
 		return c
 	}
-	c := C.CString(str)
+	c = C.CString(str)
+	cstrsLock.Lock()
 	cstrs[str] = c
+	cstrsLock.Unlock()
 	return c
 }
 
@@ -70,6 +79,7 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	if len(path) == 0 {
 		path = append(path, "_G")
 	}
+
 	// ensure namespaces
 	for i, namespace := range path {
 		cNamespace := cstr(namespace)
@@ -100,6 +110,7 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 			}
 		}
 	}
+
 	// register function
 	funcType := reflect.TypeOf(fun)
 	if funcType.IsVariadic() {
@@ -157,10 +168,10 @@ func Invoke(funcId int64) int {
 	return len(returnValues)
 }
 
-var stringType = reflect.TypeOf("")
-var intType = reflect.TypeOf(int(0))
-var floatType = reflect.TypeOf(float64(0))
-var boolType = reflect.TypeOf(true)
+var stringType = reflect.TypeOf((*string)(nil)).Elem()
+var intType = reflect.TypeOf((*int)(nil)).Elem()
+var floatType = reflect.TypeOf((*float64)(nil)).Elem()
+var boolType = reflect.TypeOf((*bool)(nil)).Elem()
 
 func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 	luaType := C.lua_type(lua.State, i)
@@ -198,7 +209,6 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 			ret = reflect.New(stringType).Elem()
 			ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
 		case C.LUA_TLIGHTUSERDATA:
-			//TODO test
 			ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
 		case C.LUA_TBOOLEAN:
 			ret = reflect.New(boolType).Elem()
@@ -300,7 +310,7 @@ func (lua *Lua) PushGoValue(value reflect.Value) {
 func (self *Lua) RunString(code string) {
 	defer func() {
 		if r := recover(); r != nil {
-			if self.PrintTraceback {
+			if self.PrintTraceback { //NOCOVER
 				print("============ start lua traceback ============\n")
 				self.RunString(`print(debug.traceback())`)
 				print("============ end lua traceback ==============\n")
@@ -323,7 +333,7 @@ func (self *Lua) RunString(code string) {
 func (self *Lua) CallFunction(name string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			if self.PrintTraceback {
+			if self.PrintTraceback { //NOCOVER
 				print("============ start lua traceback ============\n")
 				self.RunString(`print(debug.traceback())`)
 				print("============ end lua traceback ==============\n")
