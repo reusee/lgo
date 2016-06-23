@@ -160,7 +160,7 @@ func invoke(funcId int64) int {
 		function.lua.Panic("return values not match: %v", function.fun)
 	}
 	for _, v := range returnValues {
-		function.lua.PushGoValue(v)
+		function.lua.pushGoValue(v)
 	}
 	return len(returnValues)
 }
@@ -271,7 +271,7 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 	return
 }
 
-func (lua *Lua) PushGoValue(value reflect.Value) {
+func (lua *Lua) pushGoValue(value reflect.Value) {
 	switch t := value.Type(); t.Kind() {
 	case reflect.Bool:
 		if value.Bool() {
@@ -292,11 +292,11 @@ func (lua *Lua) PushGoValue(value reflect.Value) {
 		C.lua_createtable(lua.State, C.int(length), 0)
 		for i := 0; i < length; i++ {
 			C.lua_pushnumber(lua.State, C.lua_Number(i+1))
-			lua.PushGoValue(value.Index(i))
+			lua.pushGoValue(value.Index(i))
 			C.lua_settable(lua.State, -3)
 		}
 	case reflect.Interface:
-		lua.PushGoValue(value.Elem())
+		lua.pushGoValue(value.Elem())
 	case reflect.Ptr, reflect.UnsafePointer:
 		C.lua_pushlightuserdata(lua.State, unsafe.Pointer(value.Pointer()))
 	default:
@@ -342,7 +342,7 @@ func (self *Lua) CallFunction(name string, args ...interface{}) {
 	C.setup_message_handler(self.State)
 	C.lua_getglobal(self.State, cName)
 	for _, arg := range args {
-		self.PushGoValue(reflect.ValueOf(arg))
+		self.pushGoValue(reflect.ValueOf(arg))
 	}
 	ret := C.lua_pcallk(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2), 0, nil)
 	if ret != C.int(0) {
