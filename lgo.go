@@ -125,12 +125,12 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 		argc:      argc,
 	}
 	funcId := rand.Int63()
-	functionRegister.Set(funcId, function)
+	goFunctions.Store(funcId, function)
 	C.register_function(self.State, cName, (C.int64_t)(funcId))
 	C.lua_settop(self.State, -2)
 }
 
-var functionRegister = new(_FunctionRegister)
+var goFunctions = new(sync.Map)
 
 func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 	for name, fun := range funcs {
@@ -140,10 +140,11 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 
 //export invoke
 func invoke(funcId int64) int {
-	function, ok := functionRegister.Get(funcId)
+	v, ok := goFunctions.Load(funcId)
 	if !ok { //NOCOVER
 		panic(fmt.Sprintf("invalid function id %d\n", funcId))
 	}
+	function := v.(*_Function)
 	// check argument count
 	argc := C.lua_gettop(function.lua.State)
 	if int(argc) != function.argc {
