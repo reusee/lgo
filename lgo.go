@@ -25,21 +25,16 @@ import (
 )
 
 var (
-	cstrs     = make(map[string]*C.char)
-	cstrsLock = new(sync.RWMutex)
+	cstrs sync.Map
 )
 
 func cstr(str string) *C.char {
-	cstrsLock.RLock()
-	c, ok := cstrs[str]
-	cstrsLock.RUnlock()
+	v, ok := cstrs.Load(str)
 	if ok {
-		return c
+		return v.(*C.char)
 	}
-	c = C.CString(str)
-	cstrsLock.Lock()
-	cstrs[str] = c
-	cstrsLock.Unlock()
+	c := C.CString(str)
+	cstrs.Store(str, c)
 	return c
 }
 
