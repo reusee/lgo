@@ -6,7 +6,7 @@ package lgo
 #include <lauxlib.h>
 #include <string.h>
 #include <stdint.h>
-#cgo pkg-config: lua5.3
+#cgo pkg-config: lua
 
 void register_function(lua_State*, const char*, int64_t);
 void setup_message_handler(lua_State*);
