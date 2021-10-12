@@ -17,8 +17,8 @@ import "C"
 
 import (
 	"fmt"
-	"math/rand"
 	"reflect"
+	"runtime/cgo"
 	"strings"
 	"sync"
 	"unsafe"
@@ -119,13 +119,10 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 		funcValue: reflect.ValueOf(fun),
 		argc:      argc,
 	}
-	funcId := rand.Int63()
-	goFunctions.Store(funcId, function)
-	C.register_function(self.State, cName, (C.int64_t)(funcId))
+	handle := cgo.NewHandle(function)
+	C.register_function(self.State, cName, (C.int64_t)(handle))
 	C.lua_settop(self.State, -2)
 }
-
-var goFunctions = new(sync.Map)
 
 func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 	for name, fun := range funcs {
@@ -134,12 +131,9 @@ func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
 }
 
 //export invoke
-func invoke(funcId int64) int {
-	v, ok := goFunctions.Load(funcId)
-	if !ok { //NOCOVER
-		panic(fmt.Sprintf("invalid function id %d\n", funcId))
-	}
-	function := v.(*_Function)
+func invoke(_handle uint64) int {
+	handle := cgo.Handle(_handle)
+	function := handle.Value().(*_Function)
 	// check argument count
 	argc := C.lua_gettop(function.lua.State)
 	if int(argc) != function.argc {
