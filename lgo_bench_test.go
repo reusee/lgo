@@ -5,7 +5,7 @@ import (
 )
 
 func BenchmarkInvokeEmptyFunc(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func() {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -14,7 +14,7 @@ func BenchmarkInvokeEmptyFunc(b *testing.B) {
 }
 
 func BenchmarkInvokeInt(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(i int) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -23,7 +23,7 @@ func BenchmarkInvokeInt(b *testing.B) {
 }
 
 func BenchmarkInvokeInt2(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(i, j int) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -32,7 +32,7 @@ func BenchmarkInvokeInt2(b *testing.B) {
 }
 
 func BenchmarkInvokeBool(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg bool) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -41,7 +41,7 @@ func BenchmarkInvokeBool(b *testing.B) {
 }
 
 func BenchmarkInvokeInterface(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg interface{}) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -50,7 +50,7 @@ func BenchmarkInvokeInterface(b *testing.B) {
 }
 
 func BenchmarkInvokeString(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg string) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -59,7 +59,7 @@ func BenchmarkInvokeString(b *testing.B) {
 }
 
 func BenchmarkInvokeBytes(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg []byte) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -68,7 +68,7 @@ func BenchmarkInvokeBytes(b *testing.B) {
 }
 
 func BenchmarkInvokeSlice(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg []int) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -77,7 +77,7 @@ func BenchmarkInvokeSlice(b *testing.B) {
 }
 
 func BenchmarkInvokeSlice2(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg []int) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -86,7 +86,7 @@ func BenchmarkInvokeSlice2(b *testing.B) {
 }
 
 func BenchmarkInvokeMap(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg map[string]int) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -95,7 +95,7 @@ func BenchmarkInvokeMap(b *testing.B) {
 }
 
 func BenchmarkInvokeMap2(b *testing.B) {
-	lua := NewLua()
+	lua := New()
 	lua.RegisterFunction("foo", func(arg map[string]int) {})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

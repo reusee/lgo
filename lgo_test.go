@@ -8,7 +8,7 @@ import (
 )
 
 func TestAll(t *testing.T) {
-	lua := NewLua()
+	lua := New()
 	lua.PrintTraceback = false
 
 	t.Run("simple function", func(t *testing.T) {

@@ -52,7 +52,7 @@ type _Function struct {
 	argc      int
 }
 
-func NewLua() *Lua {
+func New() *Lua {
 	state := C.luaL_newstate()
 	if state == nil { //NOCOVER
 		panic("lua state create error")
@@ -64,6 +64,8 @@ func NewLua() *Lua {
 	}
 	return lua
 }
+
+var NewLua = New
 
 func (l *Lua) RegisterFunction(name string, fun interface{}) {
 	path := strings.Split(name, ".")
