@@ -2,6 +2,7 @@ package lgo
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"unsafe"
@@ -19,7 +20,7 @@ func TestAll(t *testing.T) {
 	t.Run("bool argument", func(t *testing.T) {
 		lua.RegisterFunction("bool", func(b bool) {
 			if b != true {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`bool(true)`)
@@ -28,7 +29,7 @@ func TestAll(t *testing.T) {
 	t.Run("int argument", func(t *testing.T) {
 		lua.RegisterFunction("int", func(i int) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`int(42)`)
@@ -37,7 +38,7 @@ func TestAll(t *testing.T) {
 	t.Run("uint argument", func(t *testing.T) {
 		lua.RegisterFunction("uint", func(i uint) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`uint(42)`)
@@ -46,7 +47,7 @@ func TestAll(t *testing.T) {
 	t.Run("float argument", func(t *testing.T) {
 		lua.RegisterFunction("float", func(f float64) {
 			if f != 42.5 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`float(42.5)`)
@@ -55,10 +56,10 @@ func TestAll(t *testing.T) {
 	t.Run("interface argument", func(t *testing.T) {
 		lua.RegisterFunction("interface", func(a, b interface{}) {
 			if i, ok := a.(float64); !ok || i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 			if s, ok := b.(string); !ok || s != "foo" {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`interface(42, 'foo')`)
@@ -67,7 +68,7 @@ func TestAll(t *testing.T) {
 	t.Run("string argument", func(t *testing.T) {
 		lua.RegisterFunction("str", func(s string) {
 			if s != "foo" {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`str('foo')`)
@@ -76,7 +77,7 @@ func TestAll(t *testing.T) {
 	t.Run("bytes argument", func(t *testing.T) {
 		lua.RegisterFunction("bytes", func(bs []byte) {
 			if !bytes.Equal(bs, []byte("foo")) {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`bytes('foo')`)
@@ -85,30 +86,16 @@ func TestAll(t *testing.T) {
 	t.Run("slice argument", func(t *testing.T) {
 		lua.RegisterFunction("slice", func(is []int) {
 			if len(is) != 2 || is[0] != 4 || is[1] != 2 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`slice{4, 2}`)
 	})
 
-	t.Run("pointer argument", func(t *testing.T) {
-		s := "foo"
-		expected := unsafe.Pointer(&s)
-		lua.RegisterFunction("get_a_pointer", func() unsafe.Pointer {
-			return expected
-		})
-		lua.RegisterFunction("pointer", func(p unsafe.Pointer) {
-			if p != expected {
-				t.Fail()
-			}
-		})
-		lua.RunString(`pointer(get_a_pointer())`)
-	})
-
 	t.Run("map argument", func(t *testing.T) {
 		lua.RegisterFunction("map", func(m map[string]int) {
 			if len(m) != 2 || m["foo"] != 4 || m["bar"] != 2 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`map{foo = 4, bar = 2}`)
@@ -117,23 +104,10 @@ func TestAll(t *testing.T) {
 	t.Run("unsafepointer argument", func(t *testing.T) {
 		lua.RegisterFunction("unsafepointer", func(m unsafe.Pointer) {
 			if m != nil {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`unsafepointer(nil)`)
-	})
-
-	t.Run("pointer argument", func(t *testing.T) {
-		s := "foo"
-		lua.RegisterFunction("pointerargument", func(p *string) {
-			if p != &s {
-				t.Fail()
-			}
-		})
-		lua.RegisterFunction("a_string_pointer", func() *string {
-			return &s
-		})
-		lua.RunString("pointerargument(a_string_pointer())")
 	})
 
 	t.Run("unknown argument", func(t *testing.T) {
@@ -141,10 +115,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "unknown argument type struct {}" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo(1)`)
@@ -194,14 +168,6 @@ func TestAll(t *testing.T) {
 		lua.RunString(`if interface() ~= 'foo' then error('interface error') end`)
 	})
 
-	t.Run("pointer return", func(t *testing.T) {
-		lua.RegisterFunction("ptr", func() *int {
-			i := 5
-			return &i
-		})
-		lua.RunString(`if type(ptr()) ~= 'userdata' then error('not userdata') end`)
-	})
-
 	t.Run("register functions in map", func(t *testing.T) {
 		lua.RegisterFunctions(map[string]interface{}{
 			"rewqfdsafdsaf4312": func() {},
@@ -217,10 +183,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if !strings.HasPrefix(p.(string), "cannot register variadic function") {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RegisterFunction("foo", func(is ...int) {})
@@ -233,10 +199,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "foo" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`panic()`)
@@ -245,7 +211,7 @@ func TestAll(t *testing.T) {
 	t.Run("namespace", func(t *testing.T) {
 		lua.RegisterFunction("Foo.bar", func(i int) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`Foo.bar(42)`)
@@ -254,7 +220,7 @@ func TestAll(t *testing.T) {
 	t.Run("namespace2", func(t *testing.T) {
 		lua.RegisterFunction("bar.bar.bar", func(i int) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`bar.bar.bar(42)`)
@@ -263,7 +229,7 @@ func TestAll(t *testing.T) {
 	t.Run("namespace3", func(t *testing.T) {
 		lua.RegisterFunction("bar.foo.baz.quux", func(i int) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		lua.RunString(`bar.foo.baz.quux(42)`)
@@ -274,10 +240,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "global Foo is not a table" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RegisterFunction("Foo.bar", func() {})
@@ -289,10 +255,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "namespace Bar is not a table" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RegisterFunction("Bar.Bar.bar", func() {})
@@ -314,10 +280,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if !strings.HasPrefix(p.(string), "arguments not match") {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo(1)`)
@@ -326,16 +292,16 @@ func TestAll(t *testing.T) {
 	t.Run("invalid bool", func(t *testing.T) {
 		lua.RegisterFunction("foo", func(b bool) {
 			if !b {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not a boolean" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo({})`)
@@ -345,16 +311,16 @@ func TestAll(t *testing.T) {
 	t.Run("invalid int", func(t *testing.T) {
 		lua.RegisterFunction("foo", func(i int) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not an integer" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo({})`)
@@ -364,16 +330,16 @@ func TestAll(t *testing.T) {
 	t.Run("invalid unsigned", func(t *testing.T) {
 		lua.RegisterFunction("foo", func(i uint) {
 			if i != 42 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not an unsigned" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo({})`)
@@ -383,16 +349,16 @@ func TestAll(t *testing.T) {
 	t.Run("invalid float", func(t *testing.T) {
 		lua.RegisterFunction("foo", func(i float64) {
 			if i != 4.2 {
-				t.Fail()
+				t.Fatal()
 			}
 		})
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not a float" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo({})`)
@@ -402,10 +368,10 @@ func TestAll(t *testing.T) {
 	t.Run("bool interface", func(t *testing.T) {
 		lua.RegisterFunction("foo", func(i interface{}) {
 			if i, ok := i.(bool); !ok {
-				t.Fail()
+				t.Fatal()
 			} else {
 				if !i {
-					t.Fail()
+					t.Fatal()
 				}
 			}
 		})
@@ -418,26 +384,13 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if !strings.HasPrefix(p.(string), "wrong interface argument") {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`foo(function() end)`)
-	})
-
-	t.Run("pointer interface", func(t *testing.T) {
-		s := "foo"
-		lua.RegisterFunction("pointerinterface", func(p interface{}) {
-			if (*string)(p.(unsafe.Pointer)) != &s {
-				t.Fail()
-			}
-		})
-		lua.RegisterFunction("a_string_pointer", func() *string {
-			return &s
-		})
-		lua.RunString("pointerinterface(a_string_pointer())")
 	})
 
 	t.Run("invalid string", func(t *testing.T) {
@@ -445,10 +398,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not a string" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString("invalidstring(1)")
@@ -459,10 +412,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "wrong slice argument" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString("invalidslice(1)")
@@ -473,10 +426,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not a pointer" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`invalidpointer(1)`)
@@ -487,10 +440,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if p.(string) != "not a map" {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`invalidmap(1)`)
@@ -505,10 +458,11 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
-			if !strings.HasPrefix(p.(string), "wrong return value") {
-				t.Fail()
+			msg := fmt.Sprintf("%s", p)
+			if !strings.HasPrefix(msg, "invalid value") {
+				t.Fatalf("got %s", msg)
 			}
 		}()
 		lua.CallFunction("foo", func() {})
@@ -518,10 +472,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if !strings.Contains(p.(string), "syntax error") {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`func end`)
@@ -531,10 +485,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if !strings.Contains(p.(string), "foobarbaz") {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.RunString(`error('foobarbaz')`)
@@ -549,10 +503,10 @@ func TestAll(t *testing.T) {
 		defer func() {
 			p := recover()
 			if p == nil {
-				t.Fail()
+				t.Fatal()
 			}
 			if !strings.Contains(p.(string), "foobarbaz") {
-				t.Fail()
+				t.Fatal()
 			}
 		}()
 		lua.CallFunction("foobarbaz")

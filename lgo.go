@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"unsafe"
+
+	"github.com/reusee/sb"
 )
 
 var (
@@ -152,7 +154,11 @@ func invoke(_handle uint64) int {
 		function.lua.Panic("return values not match: %v", function.fun)
 	}
 	for _, v := range returnValues {
-		function.lua.pushGoValue(v)
+		proc := sb.MarshalValue(sb.DefaultCtx, v, nil)
+		ce(sb.Copy(
+			&proc,
+			pushValue(function.lua, nil),
+		))
 	}
 	return len(returnValues)
 }
@@ -263,39 +269,6 @@ func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
 	return
 }
 
-func (lua *Lua) pushGoValue(value reflect.Value) {
-	switch t := value.Type(); t.Kind() {
-	case reflect.Bool:
-		if value.Bool() {
-			C.lua_pushboolean(lua.State, C.int(1))
-		} else {
-			C.lua_pushboolean(lua.State, C.int(0))
-		}
-	case reflect.String:
-		C.lua_pushstring(lua.State, C.CString(value.String()))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		C.lua_pushnumber(lua.State, C.lua_Number(C.longlong(value.Int())))
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		C.lua_pushnumber(lua.State, C.lua_Number(C.ulonglong(value.Uint())))
-	case reflect.Float32, reflect.Float64:
-		C.lua_pushnumber(lua.State, C.lua_Number(C.double(value.Float())))
-	case reflect.Slice:
-		length := value.Len()
-		C.lua_createtable(lua.State, C.int(length), 0)
-		for i := 0; i < length; i++ {
-			C.lua_pushnumber(lua.State, C.lua_Number(i+1))
-			lua.pushGoValue(value.Index(i))
-			C.lua_settable(lua.State, -3)
-		}
-	case reflect.Interface:
-		lua.pushGoValue(value.Elem())
-	case reflect.Ptr, reflect.UnsafePointer:
-		C.lua_pushlightuserdata(lua.State, unsafe.Pointer(value.Pointer()))
-	default:
-		lua.Panic("wrong return value %v %v", value, t.Kind())
-	}
-}
-
 func (l *Lua) RunString(code string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -334,7 +307,10 @@ func (l *Lua) CallFunction(name string, args ...interface{}) {
 	C.setup_message_handler(l.State)
 	C.lua_getglobal(l.State, cName)
 	for _, arg := range args {
-		l.pushGoValue(reflect.ValueOf(arg))
+		ce(sb.Copy(
+			sb.Marshal(arg),
+			pushValue(l, nil),
+		))
 	}
 	ret := C.lua_pcallk(l.State, C.int(len(args)), 0, C.lua_gettop(l.State)-C.int(len(args)+2), 0, nil)
 	if ret != C.int(0) {
