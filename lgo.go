@@ -65,7 +65,7 @@ func NewLua() *Lua {
 	return lua
 }
 
-func (self *Lua) RegisterFunction(name string, fun interface{}) {
+func (l *Lua) RegisterFunction(name string, fun interface{}) {
 	path := strings.Split(name, ".")
 	name = path[len(path)-1]
 	path = path[0 : len(path)-1]
@@ -77,29 +77,29 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	for i, namespace := range path {
 		cNamespace := cstr(namespace)
 		if i == 0 { // top namespace
-			what := C.lua_getglobal(self.State, cNamespace)
+			what := C.lua_getglobal(l.State, cNamespace)
 			if what == C.LUA_TNIL { // not exists
-				C.lua_settop(self.State, -2)
-				C.lua_createtable(self.State, 0, 0)
-				C.lua_setglobal(self.State, cNamespace)
-				C.lua_getglobal(self.State, cNamespace)
+				C.lua_settop(l.State, -2)
+				C.lua_createtable(l.State, 0, 0)
+				C.lua_setglobal(l.State, cNamespace)
+				C.lua_getglobal(l.State, cNamespace)
 			}
-			if C.lua_type(self.State, -1) != C.LUA_TTABLE {
-				self.Panic("global %s is not a table", namespace)
+			if C.lua_type(l.State, -1) != C.LUA_TTABLE {
+				l.Panic("global %s is not a table", namespace)
 			}
 		} else { // sub namespace
-			C.lua_pushstring(self.State, cNamespace)
-			C.lua_rawget(self.State, -2)
-			if C.lua_type(self.State, -1) == C.LUA_TNIL {
-				C.lua_settop(self.State, -2)
-				C.lua_pushstring(self.State, cNamespace)
-				C.lua_createtable(self.State, 0, 0)
-				C.lua_rawset(self.State, -3)
-				C.lua_pushstring(self.State, cNamespace)
-				C.lua_rawget(self.State, -2)
+			C.lua_pushstring(l.State, cNamespace)
+			C.lua_rawget(l.State, -2)
+			if C.lua_type(l.State, -1) == C.LUA_TNIL {
+				C.lua_settop(l.State, -2)
+				C.lua_pushstring(l.State, cNamespace)
+				C.lua_createtable(l.State, 0, 0)
+				C.lua_rawset(l.State, -3)
+				C.lua_pushstring(l.State, cNamespace)
+				C.lua_rawget(l.State, -2)
 			}
-			if C.lua_type(self.State, -1) != C.LUA_TTABLE {
-				self.Panic("namespace %s is not a table", namespace)
+			if C.lua_type(l.State, -1) != C.LUA_TTABLE {
+				l.Panic("namespace %s is not a table", namespace)
 			}
 		}
 	}
@@ -107,26 +107,26 @@ func (self *Lua) RegisterFunction(name string, fun interface{}) {
 	// register function
 	funcType := reflect.TypeOf(fun)
 	if funcType.IsVariadic() {
-		self.Panic("cannot register variadic function: %v", fun)
+		l.Panic("cannot register variadic function: %v", fun)
 	}
 	argc := funcType.NumIn()
 	cName := cstr(name)
 	function := &_Function{
 		fun:       fun,
-		lua:       self,
+		lua:       l,
 		name:      name,
 		funcType:  funcType,
 		funcValue: reflect.ValueOf(fun),
 		argc:      argc,
 	}
 	handle := cgo.NewHandle(function)
-	C.register_function(self.State, cName, (C.int64_t)(handle))
-	C.lua_settop(self.State, -2)
+	C.register_function(l.State, cName, (C.int64_t)(handle))
+	C.lua_settop(l.State, -2)
 }
 
-func (self *Lua) RegisterFunctions(funcs map[string]interface{}) {
+func (l *Lua) RegisterFunctions(funcs map[string]interface{}) {
 	for name, fun := range funcs {
-		self.RegisterFunction(name, fun)
+		l.RegisterFunction(name, fun)
 	}
 }
 
@@ -294,52 +294,52 @@ func (lua *Lua) pushGoValue(value reflect.Value) {
 	}
 }
 
-func (self *Lua) RunString(code string) {
+func (l *Lua) RunString(code string) {
 	defer func() {
 		if r := recover(); r != nil {
-			if self.PrintTraceback { //NOCOVER
+			if l.PrintTraceback { //NOCOVER
 				print("============ start lua traceback ============\n")
-				self.RunString(`print(debug.traceback())`)
+				l.RunString(`print(debug.traceback())`)
 				print("============ end lua traceback ==============\n")
 			}
 			panic(r)
 		}
 	}()
 	cCode := cstr(code)
-	C.setup_message_handler(self.State)
-	if ret := C.luaL_loadstring(self.State, cCode); ret != C.int(0) {
-		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
+	C.setup_message_handler(l.State)
+	if ret := C.luaL_loadstring(l.State, cCode); ret != C.int(0) {
+		l.Panic("%s", C.GoString(C.lua_tolstring(l.State, -1, nil)))
 	}
-	ret := C.lua_pcallk(self.State, 0, 0, C.lua_gettop(self.State)-C.int(1), 0, nil)
+	ret := C.lua_pcallk(l.State, 0, 0, C.lua_gettop(l.State)-C.int(1), 0, nil)
 	if ret != C.int(0) {
-		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
+		l.Panic("%s", C.GoString(C.lua_tolstring(l.State, -1, nil)))
 	}
-	C.lua_settop(self.State, 0)
+	C.lua_settop(l.State, 0)
 }
 
-func (self *Lua) CallFunction(name string, args ...interface{}) {
+func (l *Lua) CallFunction(name string, args ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			if self.PrintTraceback { //NOCOVER
+			if l.PrintTraceback { //NOCOVER
 				print("============ start lua traceback ============\n")
-				self.RunString(`print(debug.traceback())`)
+				l.RunString(`print(debug.traceback())`)
 				print("============ end lua traceback ==============\n")
 			}
 			panic(r)
 		}
 	}()
 	cName := cstr(name)
-	C.setup_message_handler(self.State)
-	C.lua_getglobal(self.State, cName)
+	C.setup_message_handler(l.State)
+	C.lua_getglobal(l.State, cName)
 	for _, arg := range args {
-		self.pushGoValue(reflect.ValueOf(arg))
+		l.pushGoValue(reflect.ValueOf(arg))
 	}
-	ret := C.lua_pcallk(self.State, C.int(len(args)), 0, C.lua_gettop(self.State)-C.int(len(args)+2), 0, nil)
+	ret := C.lua_pcallk(l.State, C.int(len(args)), 0, C.lua_gettop(l.State)-C.int(len(args)+2), 0, nil)
 	if ret != C.int(0) {
-		self.Panic("%s", C.GoString(C.lua_tolstring(self.State, -1, nil)))
+		l.Panic("%s", C.GoString(C.lua_tolstring(l.State, -1, nil)))
 	}
 }
 
-func (self *Lua) Panic(format string, args ...interface{}) {
+func (l *Lua) Panic(format string, args ...interface{}) {
 	panic(fmt.Sprintf(format, args...))
 }
