@@ -1,6 +1,7 @@
 package lgo
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/reusee/sb"
@@ -15,11 +16,14 @@ import "C"
 
 func pushValue(l *Lua, cont sink) sink {
 	return func(token *sb.Token) (sink, error) {
-		if token == nil {
-			return cont, nil
+		if token == nil { // NOCOVER
+			return nil, fmt.Errorf("expecting value")
 		}
 
 		switch token.Kind {
+
+		case sb.KindNil:
+			C.lua_pushnil(l.State)
 
 		case sb.KindBool:
 			if token.Value.(bool) {
@@ -60,7 +64,15 @@ func pushValue(l *Lua, cont sink) sink {
 
 		case sb.KindArray:
 			C.lua_createtable(l.State, 0, 0)
-			return pushArrayElem(l, 1, cont), nil
+			return pushArray(l, 1, cont), nil
+
+		case sb.KindMap:
+			C.lua_createtable(l.State, 0, 0)
+			return pushMap(l, cont), nil
+
+		case sb.KindObject:
+			C.lua_createtable(l.State, 0, 0)
+			return pushObject(l, cont), nil
 
 		default:
 			l.Panic("invalid value: %s", token)
@@ -70,9 +82,9 @@ func pushValue(l *Lua, cont sink) sink {
 	}
 }
 
-func pushArrayElem(l *Lua, num int, cont sink) sink {
+func pushArray(l *Lua, num int, cont sink) sink {
 	return func(token *sb.Token) (sink, error) {
-		if token == nil {
+		if token == nil { // NOCOVER
 			return nil, io.ErrUnexpectedEOF
 		}
 		if token.Kind == sb.KindArrayEnd {
@@ -83,7 +95,53 @@ func pushArrayElem(l *Lua, num int, cont sink) sink {
 			l,
 			func(token *sb.Token) (sink, error) {
 				C.lua_settable(l.State, -3)
-				return pushArrayElem(l, num+1, cont).Sink(token)
+				return pushArray(l, num+1, cont).Sink(token)
+			},
+		).Sink(token)
+	}
+}
+
+func pushMap(l *Lua, cont sink) sink {
+	return func(token *sb.Token) (sink, error) {
+		if token == nil { // NOCOVER
+			return nil, io.ErrUnexpectedEOF
+		}
+		if token.Kind == sb.KindMapEnd {
+			return cont, nil
+		}
+		return pushValue( // key
+			l,
+			func(token *sb.Token) (sink, error) {
+				return pushValue( // value
+					l,
+					func(token *sb.Token) (sink, error) {
+						C.lua_settable(l.State, -3)
+						return pushMap(l, cont).Sink(token)
+					},
+				).Sink(token)
+			},
+		).Sink(token)
+	}
+}
+
+func pushObject(l *Lua, cont sink) sink {
+	return func(token *sb.Token) (sink, error) {
+		if token == nil { // NOCOVER
+			return nil, io.ErrUnexpectedEOF
+		}
+		if token.Kind == sb.KindObjectEnd {
+			return cont, nil
+		}
+		return pushValue( // key
+			l,
+			func(token *sb.Token) (sink, error) {
+				return pushValue( // value
+					l,
+					func(token *sb.Token) (sink, error) {
+						C.lua_settable(l.State, -3)
+						return pushObject(l, cont).Sink(token)
+					},
+				).Sink(token)
 			},
 		).Sink(token)
 	}
