@@ -35,6 +35,12 @@ func decodeStack(
 				Value: C.lua_toboolean(l.State, num) == C.int(1),
 			}, cont, nil
 
+		case C.LUA_TLIGHTUSERDATA:
+			return &sb.Token{
+				Kind:  sb.KindPointer,
+				Value: C.lua_topointer(l.State, num),
+			}, cont, nil
+
 		case C.LUA_TNUMBER:
 			switch t.Kind() {
 

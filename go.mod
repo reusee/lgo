@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/reusee/e4 v0.0.0-20210929160631-f5ffcca999a5
-	github.com/reusee/sb v0.0.0-20211011162533-a0461cb305de
+	github.com/reusee/sb v0.0.0-20211013023636-c521ec7cac82
 )
 
 require (

@@ -3,6 +3,7 @@ package lgo
 import (
 	"fmt"
 	"io"
+	"unsafe"
 
 	"github.com/reusee/sb"
 )
@@ -73,6 +74,9 @@ func pushValue(l *Lua, cont sink) sink {
 		case sb.KindObject:
 			C.lua_createtable(l.State, 0, 0)
 			return pushObject(l, cont), nil
+
+		case sb.KindPointer:
+			C.lua_pushlightuserdata(l.State, unsafe.Pointer(token.Value.(uintptr)))
 
 		default:
 			l.Panic("invalid value: %s", token)
