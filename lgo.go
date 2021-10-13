@@ -21,7 +21,6 @@ import (
 	"runtime/cgo"
 	"strings"
 	"sync"
-	"unsafe"
 
 	"github.com/reusee/sb"
 )
@@ -146,7 +145,14 @@ func invoke(_handle uint64) int {
 	// arguments
 	var args []reflect.Value
 	for i := C.int(1); i <= argc; i++ {
-		args = append(args, function.lua.toGoValue(i, function.funcType.In(int(i-1))))
+		t := function.funcType.In(int(i - 1))
+		arg := reflect.New(t)
+		proc := decodeStack(function.lua, C.int(i), t, nil)
+		ce(sb.Copy(
+			&proc,
+			sb.Unmarshal(arg.Interface()),
+		))
+		args = append(args, arg.Elem())
 	}
 	// call and returns
 	returnValues := function.funcValue.Call(args)
@@ -161,112 +167,6 @@ func invoke(_handle uint64) int {
 		))
 	}
 	return len(returnValues)
-}
-
-var stringType = reflect.TypeOf((*string)(nil)).Elem()
-var intType = reflect.TypeOf((*int)(nil)).Elem()
-var floatType = reflect.TypeOf((*float64)(nil)).Elem()
-var boolType = reflect.TypeOf((*bool)(nil)).Elem()
-
-func (lua *Lua) toGoValue(i C.int, paramType reflect.Type) (ret reflect.Value) {
-	luaType := C.lua_type(lua.State, i)
-	paramKind := paramType.Kind()
-	switch paramKind {
-	case reflect.Bool:
-		if luaType != C.LUA_TBOOLEAN {
-			lua.Panic("not a boolean")
-		}
-		ret = reflect.ValueOf(C.lua_toboolean(lua.State, i) == C.int(1))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if luaType != C.LUA_TNUMBER {
-			lua.Panic("not an integer")
-		}
-		ret = reflect.New(paramType).Elem()
-		ret.SetInt(int64(C.lua_tointegerx(lua.State, i, nil)))
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if luaType != C.LUA_TNUMBER {
-			lua.Panic("not an unsigned")
-		}
-		ret = reflect.New(paramType).Elem()
-		ret.SetUint(uint64(C.lua_tointegerx(lua.State, i, nil)))
-	case reflect.Float32, reflect.Float64:
-		if luaType != C.LUA_TNUMBER {
-			lua.Panic("not a float")
-		}
-		ret = reflect.New(paramType).Elem()
-		ret.SetFloat(float64(C.lua_tonumberx(lua.State, i, nil)))
-	case reflect.Interface:
-		switch luaType {
-		case C.LUA_TNUMBER:
-			ret = reflect.New(floatType).Elem()
-			ret.SetFloat(float64(C.lua_tonumberx(lua.State, i, nil)))
-		case C.LUA_TSTRING:
-			ret = reflect.New(stringType).Elem()
-			ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
-		case C.LUA_TLIGHTUSERDATA:
-			ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
-		case C.LUA_TBOOLEAN:
-			ret = reflect.New(boolType).Elem()
-			ret.SetBool(C.lua_toboolean(lua.State, i) == C.int(1))
-		//TODO nil
-		//TODO table
-		default:
-			lua.Panic("wrong interface argument: %v", paramKind)
-		}
-	case reflect.String:
-		if luaType != C.LUA_TSTRING {
-			lua.Panic("not a string")
-		}
-		ret = reflect.New(paramType).Elem()
-		ret.SetString(C.GoString(C.lua_tolstring(lua.State, i, nil)))
-	case reflect.Slice:
-		switch luaType {
-		case C.LUA_TSTRING:
-			ret = reflect.New(paramType).Elem()
-			cstr := C.lua_tolstring(lua.State, i, nil)
-			ret.SetBytes(C.GoBytes(unsafe.Pointer(cstr), C.int(C.strlen(cstr))))
-		case C.LUA_TTABLE:
-			ret = reflect.MakeSlice(paramType, 0, 0)
-			C.lua_pushnil(lua.State)
-			elemType := paramType.Elem()
-			for C.lua_next(lua.State, i) != 0 {
-				ret = reflect.Append(ret, lua.toGoValue(-1, elemType))
-				C.lua_settop(lua.State, -2)
-			}
-		default:
-			lua.Panic("wrong slice argument")
-		}
-	case reflect.Ptr:
-		if luaType != C.LUA_TLIGHTUSERDATA {
-			lua.Panic("not a pointer")
-		}
-		pointer := C.lua_topointer(lua.State, i)
-		ret = reflect.NewAt(paramType, unsafe.Pointer(&pointer)).Elem()
-	case reflect.Map:
-		if luaType != C.LUA_TTABLE {
-			lua.Panic("not a map")
-		}
-		ret = reflect.MakeMap(paramType)
-		C.lua_pushnil(lua.State)
-		keyType := paramType.Key()
-		elemType := paramType.Elem()
-		for C.lua_next(lua.State, i) != 0 {
-			ret.SetMapIndex(
-				lua.toGoValue(-2, keyType),
-				lua.toGoValue(-1, elemType))
-			C.lua_settop(lua.State, -2)
-		}
-	case reflect.UnsafePointer:
-		ret = reflect.ValueOf(C.lua_topointer(lua.State, i))
-	//TODO complex64/128
-	//TODO array
-	//TODO chan
-	//TODO func
-	//TODO struct
-	default:
-		lua.Panic("unknown argument type %v", paramType)
-	}
-	return
 }
 
 func (l *Lua) RunString(code string) {

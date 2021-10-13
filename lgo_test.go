@@ -47,7 +47,7 @@ func TestAll(t *testing.T) {
 	t.Run("float argument", func(t *testing.T) {
 		lua.RegisterFunction("float", func(f float64) {
 			if f != 42.5 {
-				t.Fatal()
+				t.Fatalf("got %v", f)
 			}
 		})
 		lua.RunString(`float(42.5)`)
@@ -56,7 +56,7 @@ func TestAll(t *testing.T) {
 	t.Run("interface argument", func(t *testing.T) {
 		lua.RegisterFunction("interface", func(a, b interface{}) {
 			if i, ok := a.(float64); !ok || i != 42 {
-				t.Fatal()
+				t.Fatalf("got %v", a)
 			}
 			if s, ok := b.(string); !ok || s != "foo" {
 				t.Fatal()
@@ -108,20 +108,6 @@ func TestAll(t *testing.T) {
 			}
 		})
 		lua.RunString(`unsafepointer(nil)`)
-	})
-
-	t.Run("unknown argument", func(t *testing.T) {
-		lua.RegisterFunction("foo", func(s struct{}) {})
-		defer func() {
-			p := recover()
-			if p == nil {
-				t.Fatal()
-			}
-			if p.(string) != "unknown argument type struct {}" {
-				t.Fatal()
-			}
-		}()
-		lua.RunString(`foo(1)`)
 	})
 
 	t.Run("bool return", func(t *testing.T) {
@@ -300,8 +286,9 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not a boolean" {
-				t.Fatal()
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting bool" {
+				t.Fatalf("got %s", msg)
 			}
 		}()
 		lua.RunString(`foo({})`)
@@ -319,8 +306,9 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not an integer" {
-				t.Fatal()
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting int" {
+				t.Fatalf("got %s", msg)
 			}
 		}()
 		lua.RunString(`foo({})`)
@@ -338,7 +326,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not an unsigned" {
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting uint" {
 				t.Fatal()
 			}
 		}()
@@ -357,7 +346,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not a float" {
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting float64" {
 				t.Fatal()
 			}
 		}()
@@ -386,8 +376,9 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if !strings.HasPrefix(p.(string), "wrong interface argument") {
-				t.Fatal()
+			msg := fmt.Sprintf("%s", p)
+			if msg != "function type not supported" {
+				t.Fatalf("got %s", msg)
 			}
 		}()
 		lua.RunString(`foo(function() end)`)
@@ -400,7 +391,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not a string" {
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting string" {
 				t.Fatal()
 			}
 		}()
@@ -414,7 +406,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "wrong slice argument" {
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting []int" {
 				t.Fatal()
 			}
 		}()
@@ -428,7 +421,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not a pointer" {
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting *int" {
 				t.Fatal()
 			}
 		}()
@@ -442,7 +436,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if p.(string) != "not a map" {
+			msg := fmt.Sprintf("%s", p)
+			if msg != "type mismatch, expecting map[int]bool" {
 				t.Fatal()
 			}
 		}()
@@ -474,7 +469,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if !strings.Contains(p.(string), "syntax error") {
+			msg := fmt.Sprintf("%s", p)
+			if !strings.Contains(msg, "syntax error") {
 				t.Fatal()
 			}
 		}()
@@ -487,7 +483,8 @@ func TestAll(t *testing.T) {
 			if p == nil {
 				t.Fatal()
 			}
-			if !strings.Contains(p.(string), "foobarbaz") {
+			msg := fmt.Sprintf("%s", p)
+			if !strings.Contains(msg, "foobarbaz") {
 				t.Fatal()
 			}
 		}()

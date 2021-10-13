@@ -7,6 +7,7 @@ import (
 
 type (
 	sink = sb.Sink
+	proc = sb.Proc
 )
 
 var (
