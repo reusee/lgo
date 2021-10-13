@@ -3,6 +3,7 @@ package lgo
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/reusee/sb"
 )
@@ -211,6 +212,19 @@ func decodeObject(
 
 	C.lua_pushnil(l.State)
 
+	var fieldTypes map[string]reflect.Type
+	v, ok := structFieldTypesMap.Load(t)
+	if !ok {
+		fieldTypes = make(map[string]reflect.Type)
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			fieldTypes[field.Name] = field.Type
+		}
+		structFieldTypesMap.Store(t, fieldTypes)
+	} else {
+		fieldTypes = v.(map[string]reflect.Type)
+	}
+
 	var ret proc
 	ret = func() (*sb.Token, proc, error) {
 		if C.lua_next(l.State, num) == 0 {
@@ -220,7 +234,7 @@ func decodeObject(
 		}
 
 		name := C.GoString(C.lua_tolstring(l.State, -2, nil))
-		field, ok := t.FieldByName(name)
+		fieldType, ok := fieldTypes[name]
 		if !ok {
 			C.lua_settop(l.State, -2)
 			if l.NonStrict {
@@ -232,7 +246,7 @@ func decodeObject(
 		return &sb.Token{
 				Kind:  sb.KindString,
 				Value: name,
-			}, decodeStack(l, C.lua_absindex(l.State, -1), field.Type,
+			}, decodeStack(l, C.lua_absindex(l.State, -1), fieldType,
 				func() (*sb.Token, proc, error) {
 					C.lua_settop(l.State, -2)
 					return nil, ret, nil
@@ -241,6 +255,8 @@ func decodeObject(
 	}
 	return ret
 }
+
+var structFieldTypesMap sync.Map
 
 func decodeMap(
 	l *Lua,
