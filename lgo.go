@@ -11,6 +11,8 @@ void register_function(lua_State*, const char*, int64_t);
 void setup_message_handler(lua_State*);
 int traceback(lua_State*);
 
+#cgo !windows LDFLAGS: -lm
+
 */
 import "C"
 
