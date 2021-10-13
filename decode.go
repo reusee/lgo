@@ -188,7 +188,7 @@ func decodeArray(
 			}, cont, nil
 		}
 
-		return decodeStack(l, C.lua_gettop(l.State), elemType,
+		return decodeStack(l, C.lua_absindex(l.State, -1), elemType,
 			func() (*sb.Token, proc, error) {
 				C.lua_settop(l.State, -2)
 				return nil, ret, nil
@@ -229,7 +229,7 @@ func decodeObject(
 		return &sb.Token{
 				Kind:  sb.KindString,
 				Value: name,
-			}, decodeStack(l, C.lua_gettop(l.State), field.Type,
+			}, decodeStack(l, C.lua_absindex(l.State, -1), field.Type,
 				func() (*sb.Token, proc, error) {
 					C.lua_settop(l.State, -2)
 					return nil, ret, nil
@@ -258,9 +258,8 @@ func decodeMap(
 			}, cont, nil
 		}
 
-		top := C.lua_gettop(l.State)
-		return decodeStack(l, top-1, keyType,
-			decodeStack(l, top, elemType,
+		return decodeStack(l, C.lua_absindex(l.State, -2), keyType,
+			decodeStack(l, C.lua_absindex(l.State, -1), elemType,
 				func() (*sb.Token, proc, error) {
 					C.lua_settop(l.State, -2)
 					return nil, ret, nil
