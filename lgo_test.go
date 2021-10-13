@@ -531,19 +531,16 @@ func TestAll(t *testing.T) {
 		lua.RunString("invalidslice(1)")
 	})
 
-	t.Run("invalid pointer", func(t *testing.T) {
-		lua.RegisterFunction("invalidpointer", func(p *int) {})
-		defer func() {
-			p := recover()
+	t.Run("pointer", func(t *testing.T) {
+		lua.RegisterFunction("pointer", func(p *int) {
 			if p == nil {
 				t.Fatal()
 			}
-			msg := fmt.Sprintf("%s", p)
-			if msg != "type mismatch, expecting *int" {
+			if *p != 1 {
 				t.Fatal()
 			}
-		}()
-		lua.RunString(`invalidpointer(1)`)
+		})
+		lua.CallFunction("pointer", 1)
 	})
 
 	t.Run("invalid map", func(t *testing.T) {

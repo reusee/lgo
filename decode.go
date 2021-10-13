@@ -20,6 +20,9 @@ func decodeStack(
 	t reflect.Type,
 	cont proc,
 ) proc {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	return func() (*sb.Token, proc, error) {
 		luaType := C.lua_type(l.State, num)
 		switch luaType {
