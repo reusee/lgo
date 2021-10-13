@@ -220,7 +220,11 @@ func decodeObject(
 		field, ok := t.FieldByName(name)
 		if !ok {
 			C.lua_settop(l.State, -2)
-			return nil, ret, nil
+			if l.NonStrict {
+				return nil, ret, nil
+			} else {
+				return nil, nil, fmt.Errorf("no %s in %v", name, t)
+			}
 		}
 		return &sb.Token{
 				Kind:  sb.KindString,

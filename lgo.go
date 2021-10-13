@@ -41,6 +41,7 @@ func cstr(str string) *C.char {
 type Lua struct {
 	State          *C.lua_State
 	PrintTraceback bool
+	NonStrict      bool
 }
 
 type _Function struct {

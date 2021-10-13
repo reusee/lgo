@@ -207,6 +207,7 @@ func TestAll(t *testing.T) {
 				},
 			},
 		})
+		lua.NonStrict = true
 		lua.RunString(`struct{
       Bar = {
         Baz = {
