@@ -35,6 +35,42 @@ func TestAll(t *testing.T) {
 		lua.RunString(`int(42)`)
 	})
 
+	t.Run("int8 argument", func(t *testing.T) {
+		lua.RegisterFunction("int8", func(i int8) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`int8(42)`)
+	})
+
+	t.Run("int16 argument", func(t *testing.T) {
+		lua.RegisterFunction("int16", func(i int16) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`int16(42)`)
+	})
+
+	t.Run("int32 argument", func(t *testing.T) {
+		lua.RegisterFunction("int32", func(i int32) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`int32(42)`)
+	})
+
+	t.Run("int64 argument", func(t *testing.T) {
+		lua.RegisterFunction("int64", func(i int64) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`int64(42)`)
+	})
+
 	t.Run("uint argument", func(t *testing.T) {
 		lua.RegisterFunction("uint", func(i uint) {
 			if i != 42 {
@@ -44,6 +80,42 @@ func TestAll(t *testing.T) {
 		lua.RunString(`uint(42)`)
 	})
 
+	t.Run("uint8 argument", func(t *testing.T) {
+		lua.RegisterFunction("uint8", func(i uint8) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`uint8(42)`)
+	})
+
+	t.Run("uint16 argument", func(t *testing.T) {
+		lua.RegisterFunction("uint16", func(i uint16) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`uint16(42)`)
+	})
+
+	t.Run("uint32 argument", func(t *testing.T) {
+		lua.RegisterFunction("uint32", func(i uint32) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`uint32(42)`)
+	})
+
+	t.Run("uint64 argument", func(t *testing.T) {
+		lua.RegisterFunction("uint64", func(i uint64) {
+			if i != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`uint64(42)`)
+	})
+
 	t.Run("float argument", func(t *testing.T) {
 		lua.RegisterFunction("float", func(f float64) {
 			if f != 42.5 {
@@ -51,6 +123,15 @@ func TestAll(t *testing.T) {
 			}
 		})
 		lua.RunString(`float(42.5)`)
+	})
+
+	t.Run("float32 argument", func(t *testing.T) {
+		lua.RegisterFunction("float32", func(f float32) {
+			if f != 42.5 {
+				t.Fatalf("got %v", f)
+			}
+		})
+		lua.RunString(`float32(42.5)`)
 	})
 
 	t.Run("interface argument", func(t *testing.T) {
@@ -99,6 +180,31 @@ func TestAll(t *testing.T) {
 			}
 		})
 		lua.RunString(`map{foo = 4, bar = 2}`)
+	})
+
+	t.Run("struct argument", func(t *testing.T) {
+		type Baz struct {
+			I int
+		}
+		type Bar struct {
+			Baz Baz
+		}
+		type Foo struct {
+			Bar Bar
+		}
+		lua.RegisterFunction("struct", func(foo Foo) {
+			if foo.Bar.Baz.I != 42 {
+				t.Fatal()
+			}
+		})
+		lua.RunString(`struct{
+      Bar = {
+        Baz = {
+          I = 42,
+          J = 99
+        }
+      }
+    }`)
 	})
 
 	t.Run("unsafepointer argument", func(t *testing.T) {

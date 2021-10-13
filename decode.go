@@ -157,7 +157,7 @@ func decodeStack(
 		case C.LUA_TFUNCTION:
 			panic("function type not supported")
 
-		default:
+		default: // NOCOVER
 			panic(fmt.Errorf("bad lua type: %v", luaType))
 		}
 
@@ -177,13 +177,12 @@ func decodeArray(
 	var ret proc
 	ret = func() (*sb.Token, proc, error) {
 		if C.lua_next(l.State, num) == 0 {
-			C.lua_settop(l.State, -2)
 			return &sb.Token{
 				Kind: sb.KindArrayEnd,
 			}, cont, nil
 		}
 
-		return decodeStack(l, -1, elemType,
+		return decodeStack(l, C.lua_gettop(l.State), elemType,
 			func() (*sb.Token, proc, error) {
 				C.lua_settop(l.State, -2)
 				return nil, ret, nil
@@ -206,7 +205,6 @@ func decodeObject(
 	var ret proc
 	ret = func() (*sb.Token, proc, error) {
 		if C.lua_next(l.State, num) == 0 {
-			C.lua_settop(l.State, -2)
 			return &sb.Token{
 				Kind: sb.KindObjectEnd,
 			}, cont, nil
@@ -221,7 +219,7 @@ func decodeObject(
 		return &sb.Token{
 				Kind:  sb.KindString,
 				Value: name,
-			}, decodeStack(l, -1, field.Type,
+			}, decodeStack(l, C.lua_gettop(l.State), field.Type,
 				func() (*sb.Token, proc, error) {
 					C.lua_settop(l.State, -2)
 					return nil, ret, nil
@@ -245,14 +243,14 @@ func decodeMap(
 	var ret proc
 	ret = func() (*sb.Token, proc, error) {
 		if C.lua_next(l.State, num) == 0 {
-			C.lua_settop(l.State, -2)
 			return &sb.Token{
 				Kind: sb.KindMapEnd,
 			}, cont, nil
 		}
 
-		return decodeStack(l, -2, keyType,
-			decodeStack(l, -1, elemType,
+		top := C.lua_gettop(l.State)
+		return decodeStack(l, top-1, keyType,
+			decodeStack(l, top, elemType,
 				func() (*sb.Token, proc, error) {
 					C.lua_settop(l.State, -2)
 					return nil, ret, nil
