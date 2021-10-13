@@ -102,3 +102,18 @@ func BenchmarkInvokeMap2(b *testing.B) {
 		lua.RunString(`foo{foo = 42, bar = 92}`)
 	}
 }
+
+func BenchmarkInvokeStruct(b *testing.B) {
+	type Bar struct {
+		I int
+	}
+	type Foo struct {
+		Bar Bar
+	}
+	lua := New()
+	lua.RegisterFunction("foo", func(arg Foo) {})
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		lua.RunString(`foo{Bar = {I = 42}}`)
+	}
+}
