@@ -217,7 +217,7 @@
 
 #else			/* }{ */
 
-#define LUA_ROOT	"/usr/local/"
+#define LUA_ROOT	"/usr/"
 #define LUA_LDIR	LUA_ROOT "share/lua/" LUA_VDIR "/"
 #define LUA_CDIR	LUA_ROOT "lib/lua/" LUA_VDIR "/"
 
@@ -781,10 +781,6 @@
 ** Local configuration. You can use this space to add your redefinitions
 ** without modifying the main part of the file.
 */
-
-
-
-
 
 #endif
 
